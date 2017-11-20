@@ -33,14 +33,14 @@ public final class SyncSingleLocale {
      * @param updateActions the update actions built from comparing {@code newDraft} and {@code oldProduct}.
      * @param newDraft      the new {@link ProductDraft} being synced.
      * @param oldProduct    the old existing {@link Product}.
+     * @param productType   the product type of the product being synced.
      * @return a new list of update actions that corresponds to changes on French localizations only.
      */
     public static List<UpdateAction<Product>> syncFrenchDataOnly(
         @Nonnull final List<UpdateAction<Product>> updateActions,
         @Nonnull final ProductDraft newDraft,
-        @Nonnull final Product oldProduct) {
-        final ProductType productType = oldProduct.getProductType().getObj();
-        assert productType != null;
+        @Nonnull final Product oldProduct,
+        @Nonnull final ProductType productType) {
         return updateActions.stream()
                             .map(action ->
                                 filterSingleLocalization(action, newDraft, oldProduct, productType, Locale.FRENCH))
@@ -70,6 +70,7 @@ public final class SyncSingleLocale {
      * @param updateAction the update action built from comparing {@code newDraft} and {@code oldProduct}.
      * @param newDraft     the new {@link ProductDraft} being synced.
      * @param oldProduct   the old existing {@link Product}.
+     * @param productType   the product type of the product being synced.
      * @param locale       the locale value to only compare and map the update action to accordingly.
      * @return an optional containing the mapped update action or empty value if an update action is not needed.
      */
@@ -78,7 +79,6 @@ public final class SyncSingleLocale {
         @Nonnull final ProductDraft newDraft,
         @Nonnull final Product oldProduct,
         @Nonnull final ProductType productType,
-        //TODO: RIGHT NOW NOT USED BUT WILL BE EXTENDED LATER WITH USAGE AND TESTS. GITHUB ISSUE #189
         @Nonnull final Locale locale) {
         if (updateAction instanceof ChangeName) {
             return filterLocalizedField(newDraft, oldProduct, locale, ProductDraft::getName, ProductData::getName,
