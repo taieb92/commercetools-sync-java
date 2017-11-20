@@ -24,7 +24,7 @@ import java.util.function.Function;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
-final class SyncSingleLocale {
+public final class SyncSingleLocale {
     /**
      * Takes in a {@link List} of product update actions that was built from comparing a {@code newDraft} and an
      * {@code oldProduct} and maps the update actions so that only localizations with value {@link Locale#FRENCH}
