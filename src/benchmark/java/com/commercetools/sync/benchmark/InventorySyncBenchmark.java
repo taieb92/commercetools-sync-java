@@ -1,10 +1,12 @@
 package com.commercetools.sync.benchmark;
 
+import com.commercetools.sync.benchmark.helpers.CtpObserver;
 import com.commercetools.sync.commons.utils.SyncSolutionInfo;
 import com.commercetools.sync.inventories.InventorySync;
 import com.commercetools.sync.inventories.InventorySyncOptions;
 import com.commercetools.sync.inventories.InventorySyncOptionsBuilder;
 import com.commercetools.sync.inventories.helpers.InventorySyncStatistics;
+import io.sphere.sdk.client.metrics.SimpleMetricsSphereClient;
 import io.sphere.sdk.inventory.InventoryEntryDraft;
 import io.sphere.sdk.inventory.InventoryEntryDraftBuilder;
 import io.sphere.sdk.inventory.queries.InventoryEntryQuery;
@@ -57,10 +59,15 @@ public class InventorySyncBenchmark {
 
     @Test
     public void sync_NewInventories_ShouldCreateInventories() throws IOException {
+        final CtpObserver ctpObserver = CtpObserver.of();
+
+        final SimpleMetricsSphereClient metricsSphereClient = SimpleMetricsSphereClient.of(CTP_TARGET_CLIENT);
+        metricsSphereClient.getMetricObservable().addObserver(ctpObserver);
+
         final List<InventoryEntryDraft> inventoryEntryDrafts = buildInventoryDrafts(NUMBER_OF_RESOURCE_UNDER_TEST);
 
 
-        final InventorySyncOptions inventorySyncOptions = InventorySyncOptionsBuilder.of(CTP_TARGET_CLIENT)
+        final InventorySyncOptions inventorySyncOptions = InventorySyncOptionsBuilder.of(metricsSphereClient)
                                                                                      .build();
         final InventorySync inventorySync = new InventorySync(inventorySyncOptions);
 
@@ -92,6 +99,7 @@ public class InventorySyncBenchmark {
         assertThat(inventorySyncStatistics)
             .hasValues(NUMBER_OF_RESOURCE_UNDER_TEST, NUMBER_OF_RESOURCE_UNDER_TEST, 0, 0);
 
+        //TODO: Write ctpObserver data to file.
         saveNewResult(SyncSolutionInfo.LIB_VERSION, INVENTORY_SYNC, CREATES_ONLY, totalTime);
     }
 
