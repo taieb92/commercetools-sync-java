@@ -1,7 +1,6 @@
 package com.commercetools.sync.benchmark;
 
 import com.commercetools.sync.benchmark.helpers.CtpObserver;
-import com.commercetools.sync.commons.utils.SyncSolutionInfo;
 import com.commercetools.sync.inventories.InventorySync;
 import com.commercetools.sync.inventories.InventorySyncOptions;
 import com.commercetools.sync.inventories.InventorySyncOptionsBuilder;
@@ -30,7 +29,6 @@ import static com.commercetools.sync.benchmark.BenchmarkUtils.INVENTORY_SYNC;
 import static com.commercetools.sync.benchmark.BenchmarkUtils.NUMBER_OF_RESOURCE_UNDER_TEST;
 import static com.commercetools.sync.benchmark.BenchmarkUtils.THRESHOLD;
 import static com.commercetools.sync.benchmark.BenchmarkUtils.UPDATES_ONLY;
-import static com.commercetools.sync.benchmark.BenchmarkUtils.calculateDiff;
 import static com.commercetools.sync.benchmark.BenchmarkUtils.saveNewResult;
 import static com.commercetools.sync.commons.asserts.statistics.AssertionsForStatistics.assertThat;
 import static com.commercetools.sync.integration.commons.utils.ChannelITUtils.deleteChannels;
@@ -79,7 +77,7 @@ public class InventorySyncBenchmark {
 
 
         // Caclulate sync time and assert on threshold
-        final double diff = calculateDiff(SyncSolutionInfo.LIB_VERSION, INVENTORY_SYNC, CREATES_ONLY, totalTime);
+        final double diff = THRESHOLD - totalTime;
         assertThat(diff).withFailMessage(format("Diff of benchmark '%e' is longer than expected"
                             + " threshold of '%d'.", diff, THRESHOLD))
                         .isLessThanOrEqualTo(THRESHOLD);
@@ -100,21 +98,21 @@ public class InventorySyncBenchmark {
             .hasValues(NUMBER_OF_RESOURCE_UNDER_TEST, NUMBER_OF_RESOURCE_UNDER_TEST, 0, 0);
 
         //TODO: Write ctpObserver data to file.
-        saveNewResult(SyncSolutionInfo.LIB_VERSION, INVENTORY_SYNC, CREATES_ONLY, totalTime);
+        saveNewResult(INVENTORY_SYNC, CREATES_ONLY, totalTime, ctpObserver);
     }
 
     @Ignore
     @Test
     public void sync_ExistingInventories_ShouldUpdateInventories() throws IOException {
         // TODO: SHOULD BE IMPLEMENTED.
-        saveNewResult(SyncSolutionInfo.LIB_VERSION, INVENTORY_SYNC, UPDATES_ONLY, 50000);
+        saveNewResult(INVENTORY_SYNC, UPDATES_ONLY, 50000, CtpObserver.of());
     }
 
     @Ignore
     @Test
     public void sync_WithSomeExistingInventories_ShouldSyncInventories() throws IOException {
         // TODO: SHOULD BE IMPLEMENTED.
-        saveNewResult(SyncSolutionInfo.LIB_VERSION, INVENTORY_SYNC, CREATES_AND_UPDATES, 30000);
+        saveNewResult(INVENTORY_SYNC, CREATES_AND_UPDATES, 30000, CtpObserver.of());
     }
 
     @Nonnull

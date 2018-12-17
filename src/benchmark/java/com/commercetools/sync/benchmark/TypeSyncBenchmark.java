@@ -1,6 +1,6 @@
 package com.commercetools.sync.benchmark;
 
-import com.commercetools.sync.commons.utils.SyncSolutionInfo;
+import com.commercetools.sync.benchmark.helpers.CtpObserver;
 import com.commercetools.sync.types.TypeSync;
 import com.commercetools.sync.types.TypeSyncOptions;
 import com.commercetools.sync.types.TypeSyncOptionsBuilder;
@@ -35,7 +35,6 @@ import static com.commercetools.sync.benchmark.BenchmarkUtils.NUMBER_OF_RESOURCE
 import static com.commercetools.sync.benchmark.BenchmarkUtils.THRESHOLD;
 import static com.commercetools.sync.benchmark.BenchmarkUtils.TYPE_SYNC;
 import static com.commercetools.sync.benchmark.BenchmarkUtils.UPDATES_ONLY;
-import static com.commercetools.sync.benchmark.BenchmarkUtils.calculateDiff;
 import static com.commercetools.sync.benchmark.BenchmarkUtils.saveNewResult;
 import static com.commercetools.sync.commons.asserts.statistics.AssertionsForStatistics.assertThat;
 import static com.commercetools.sync.integration.commons.utils.SphereClientUtils.CTP_TARGET_CLIENT;
@@ -102,7 +101,8 @@ public class TypeSyncBenchmark {
         final TypeSyncStatistics syncStatistics = executeBlocking(typeSync.sync(typeDrafts));
         final long totalTime = System.currentTimeMillis() - beforeSyncTime;
 
-        final double diff = calculateDiff(SyncSolutionInfo.LIB_VERSION, TYPE_SYNC, CREATES_ONLY, totalTime);
+        // Caclulate sync time and assert on threshold
+        final double diff = THRESHOLD - totalTime;
         assertThat(diff)
                 .withFailMessage(format("Diff of benchmark '%e' is longer than expected threshold of '%d'.",
                         diff, THRESHOLD))
@@ -124,7 +124,7 @@ public class TypeSyncBenchmark {
         assertThat(errorCallBackMessages).isEmpty();
         assertThat(warningCallBackMessages).isEmpty();
 
-        saveNewResult(SyncSolutionInfo.LIB_VERSION, TYPE_SYNC, CREATES_ONLY, totalTime);
+        saveNewResult(TYPE_SYNC, CREATES_ONLY, totalTime, CtpObserver.of());
     }
 
     @Test
@@ -148,8 +148,8 @@ public class TypeSyncBenchmark {
         final TypeSyncStatistics syncStatistics = executeBlocking(typeSync.sync(typeDrafts));
         final long totalTime = System.currentTimeMillis() - beforeSyncTime;
 
-        // Calculate time taken for benchmark and assert it lies within threshold
-        final double diff = calculateDiff(SyncSolutionInfo.LIB_VERSION, TYPE_SYNC, UPDATES_ONLY, totalTime);
+        // Caclulate sync time and assert on threshold
+        final double diff = THRESHOLD - totalTime;
         assertThat(diff)
                 .withFailMessage(format("Diff of benchmark '%e' is longer than expected threshold of '%d'.",
                         diff, THRESHOLD))
@@ -183,7 +183,7 @@ public class TypeSyncBenchmark {
         assertThat(errorCallBackMessages).isEmpty();
         assertThat(warningCallBackMessages).isEmpty();
 
-        saveNewResult(SyncSolutionInfo.LIB_VERSION, TYPE_SYNC, UPDATES_ONLY, totalTime);
+        saveNewResult(TYPE_SYNC, UPDATES_ONLY, totalTime, CtpObserver.of());
     }
 
     @Test
@@ -209,8 +209,8 @@ public class TypeSyncBenchmark {
         final TypeSyncStatistics syncStatistics = executeBlocking(typeSync.sync(typeDrafts));
         final long totalTime = System.currentTimeMillis() - beforeSyncTime;
 
-        // Calculate time taken for benchmark and assert it lies within threshold
-        final double diff = calculateDiff(SyncSolutionInfo.LIB_VERSION, TYPE_SYNC, CREATES_AND_UPDATES, totalTime);
+        // Caclulate sync time and assert on threshold
+        final double diff = THRESHOLD - totalTime;
         assertThat(diff)
                 .withFailMessage(format("Diff of benchmark '%e' is longer than expected threshold of '%d'.",
                         diff, THRESHOLD))
@@ -244,7 +244,7 @@ public class TypeSyncBenchmark {
         assertThat(errorCallBackMessages).isEmpty();
         assertThat(warningCallBackMessages).isEmpty();
 
-        saveNewResult(SyncSolutionInfo.LIB_VERSION, TYPE_SYNC, CREATES_AND_UPDATES, totalTime);
+        saveNewResult(TYPE_SYNC, CREATES_AND_UPDATES, totalTime, CtpObserver.of());
     }
 
     @Nonnull

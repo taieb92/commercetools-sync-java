@@ -1,6 +1,6 @@
 package com.commercetools.sync.benchmark;
 
-import com.commercetools.sync.commons.utils.SyncSolutionInfo;
+import com.commercetools.sync.benchmark.helpers.CtpObserver;
 import com.commercetools.sync.producttypes.ProductTypeSync;
 import com.commercetools.sync.producttypes.ProductTypeSyncOptions;
 import com.commercetools.sync.producttypes.ProductTypeSyncOptionsBuilder;
@@ -33,7 +33,6 @@ import static com.commercetools.sync.benchmark.BenchmarkUtils.NUMBER_OF_RESOURCE
 import static com.commercetools.sync.benchmark.BenchmarkUtils.PRODUCT_TYPE_SYNC;
 import static com.commercetools.sync.benchmark.BenchmarkUtils.THRESHOLD;
 import static com.commercetools.sync.benchmark.BenchmarkUtils.UPDATES_ONLY;
-import static com.commercetools.sync.benchmark.BenchmarkUtils.calculateDiff;
 import static com.commercetools.sync.benchmark.BenchmarkUtils.saveNewResult;
 import static com.commercetools.sync.commons.asserts.statistics.AssertionsForStatistics.assertThat;
 import static com.commercetools.sync.integration.commons.utils.ProductTypeITUtils.ATTRIBUTE_DEFINITION_DRAFT_1;
@@ -94,7 +93,7 @@ public class ProductTypeSyncBenchmark {
         final ProductTypeSyncStatistics syncStatistics = executeBlocking(productTypeSync.sync(productTypeDrafts));
         final long totalTime = System.currentTimeMillis() - beforeSyncTime;
 
-        final double diff = calculateDiff(SyncSolutionInfo.LIB_VERSION, PRODUCT_TYPE_SYNC, CREATES_ONLY, totalTime);
+        final double diff = THRESHOLD - totalTime;
         assertThat(diff)
                 .withFailMessage(format("Diff of benchmark '%e' is longer than expected threshold of '%d'.",
                         diff, THRESHOLD))
@@ -116,7 +115,7 @@ public class ProductTypeSyncBenchmark {
         assertThat(errorCallBackMessages).isEmpty();
         assertThat(warningCallBackMessages).isEmpty();
 
-        saveNewResult(SyncSolutionInfo.LIB_VERSION, PRODUCT_TYPE_SYNC, CREATES_ONLY, totalTime);
+        saveNewResult(PRODUCT_TYPE_SYNC, CREATES_ONLY, totalTime, CtpObserver.of());
     }
 
     @Test
@@ -142,7 +141,7 @@ public class ProductTypeSyncBenchmark {
         final long totalTime = System.currentTimeMillis() - beforeSyncTime;
 
         // Calculate time taken for benchmark and assert it lies within threshold
-        final double diff = calculateDiff(SyncSolutionInfo.LIB_VERSION, PRODUCT_TYPE_SYNC, UPDATES_ONLY, totalTime);
+        final double diff = THRESHOLD - totalTime;
         assertThat(diff)
                 .withFailMessage(format("Diff of benchmark '%e' is longer than expected threshold of '%d'.",
                         diff, THRESHOLD))
@@ -176,7 +175,7 @@ public class ProductTypeSyncBenchmark {
         assertThat(errorCallBackMessages).isEmpty();
         assertThat(warningCallBackMessages).isEmpty();
 
-        saveNewResult(SyncSolutionInfo.LIB_VERSION, PRODUCT_TYPE_SYNC, UPDATES_ONLY, totalTime);
+        saveNewResult(PRODUCT_TYPE_SYNC, UPDATES_ONLY, totalTime, CtpObserver.of());
     }
 
     @Test
@@ -204,7 +203,7 @@ public class ProductTypeSyncBenchmark {
 
         // Calculate time taken for benchmark and assert it lies within threshold
         final double diff =
-            calculateDiff(SyncSolutionInfo.LIB_VERSION, PRODUCT_TYPE_SYNC, CREATES_AND_UPDATES, totalTime);
+            THRESHOLD - totalTime;
 
         assertThat(diff)
                 .withFailMessage(format("Diff of benchmark '%e' is longer than expected threshold of '%d'.",
@@ -239,7 +238,7 @@ public class ProductTypeSyncBenchmark {
         assertThat(errorCallBackMessages).isEmpty();
         assertThat(warningCallBackMessages).isEmpty();
 
-        saveNewResult(SyncSolutionInfo.LIB_VERSION, PRODUCT_TYPE_SYNC, CREATES_AND_UPDATES, totalTime);
+        saveNewResult(PRODUCT_TYPE_SYNC, CREATES_AND_UPDATES, totalTime, CtpObserver.of());
     }
 
 

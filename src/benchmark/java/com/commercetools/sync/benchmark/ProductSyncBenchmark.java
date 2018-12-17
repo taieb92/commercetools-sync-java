@@ -1,11 +1,13 @@
 package com.commercetools.sync.benchmark;
 
 
-import com.commercetools.sync.commons.utils.SyncSolutionInfo;
+import com.commercetools.sync.benchmark.helpers.CtpObserver;
 import com.commercetools.sync.products.ProductSync;
 import com.commercetools.sync.products.ProductSyncOptions;
 import com.commercetools.sync.products.ProductSyncOptionsBuilder;
 import com.commercetools.sync.products.helpers.ProductSyncStatistics;
+import io.sphere.sdk.client.SphereClient;
+import io.sphere.sdk.client.metrics.SimpleMetricsSphereClient;
 import io.sphere.sdk.models.Reference;
 import io.sphere.sdk.products.ProductDraft;
 import io.sphere.sdk.products.ProductDraftBuilder;
@@ -36,7 +38,6 @@ import static com.commercetools.sync.benchmark.BenchmarkUtils.NUMBER_OF_RESOURCE
 import static com.commercetools.sync.benchmark.BenchmarkUtils.PRODUCT_SYNC;
 import static com.commercetools.sync.benchmark.BenchmarkUtils.THRESHOLD;
 import static com.commercetools.sync.benchmark.BenchmarkUtils.UPDATES_ONLY;
-import static com.commercetools.sync.benchmark.BenchmarkUtils.calculateDiff;
 import static com.commercetools.sync.benchmark.BenchmarkUtils.saveNewResult;
 import static com.commercetools.sync.commons.asserts.statistics.AssertionsForStatistics.assertThat;
 import static com.commercetools.sync.integration.commons.utils.CategoryITUtils.OLD_CATEGORY_CUSTOM_TYPE_KEY;
@@ -55,7 +56,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class ProductSyncBenchmark {
     private static ProductType productType;
-    private ProductSyncOptions syncOptions;
     private List<String> errorCallBackMessages;
     private List<String> warningCallBackMessages;
     private List<Throwable> errorCallBackExceptions;
@@ -72,7 +72,6 @@ public class ProductSyncBenchmark {
     public void setupTest() {
         clearSyncTestCollections();
         deleteAllProducts(CTP_TARGET_CLIENT);
-        syncOptions = buildSyncOptions();
     }
 
     private void clearSyncTestCollections() {
@@ -81,14 +80,14 @@ public class ProductSyncBenchmark {
         warningCallBackMessages = new ArrayList<>();
     }
 
-    private ProductSyncOptions buildSyncOptions() {
+    private ProductSyncOptions buildSyncOptions(@Nonnull final SphereClient client) {
         final BiConsumer<String, Throwable> errorCallBack = (errorMessage, exception) -> {
             errorCallBackMessages.add(errorMessage);
             errorCallBackExceptions.add(exception);
         };
         final Consumer<String> warningCallBack = warningMessage -> warningCallBackMessages.add(warningMessage);
 
-        return ProductSyncOptionsBuilder.of(CTP_TARGET_CLIENT)
+        return ProductSyncOptionsBuilder.of(client)
                                         .errorCallback(errorCallBack)
                                         .warningCallback(warningCallBack)
                                         .build();
@@ -101,16 +100,23 @@ public class ProductSyncBenchmark {
 
     @Test
     public void sync_NewProducts_ShouldCreateProducts() throws IOException {
+
+        final CtpObserver ctpObserver = CtpObserver.of();
+
+        final SimpleMetricsSphereClient metricsSphereClient = SimpleMetricsSphereClient.of(CTP_TARGET_CLIENT);
+        metricsSphereClient.getMetricObservable().addObserver(ctpObserver);
+
+
         final List<ProductDraft> productDrafts = buildProductDrafts(NUMBER_OF_RESOURCE_UNDER_TEST);
 
         // Sync drafts
-        final ProductSync productSync = new ProductSync(syncOptions);
+        final ProductSync productSync = new ProductSync(buildSyncOptions(metricsSphereClient));
 
         final long beforeSyncTime = System.currentTimeMillis();
         final ProductSyncStatistics syncStatistics = executeBlocking(productSync.sync(productDrafts));
         final long totalTime = System.currentTimeMillis() - beforeSyncTime;
 
-        final double diff = calculateDiff(SyncSolutionInfo.LIB_VERSION, PRODUCT_SYNC, CREATES_ONLY, totalTime);
+        final double diff = THRESHOLD - totalTime;
         assertThat(diff)
             .withFailMessage(format("Diff of benchmark '%e' is longer than expected threshold of '%d'.",
                 diff, THRESHOLD))
@@ -131,7 +137,7 @@ public class ProductSyncBenchmark {
         assertThat(errorCallBackMessages).isEmpty();
         assertThat(warningCallBackMessages).isEmpty();
 
-        saveNewResult(SyncSolutionInfo.LIB_VERSION, PRODUCT_SYNC, CREATES_ONLY, totalTime);
+        saveNewResult(PRODUCT_SYNC, CREATES_ONLY, totalTime, ctpObserver);
     }
 
     @Test
@@ -149,8 +155,12 @@ public class ProductSyncBenchmark {
                                              .toArray(CompletableFuture[]::new))
                          .join();
 
-        // Sync new drafts
-        final ProductSync productSync = new ProductSync(syncOptions);
+        final CtpObserver ctpObserver = CtpObserver.of();
+        final SimpleMetricsSphereClient metricsSphereClient = SimpleMetricsSphereClient.of(CTP_TARGET_CLIENT);
+        metricsSphereClient.getMetricObservable().addObserver(ctpObserver);
+
+        // Sync drafts
+        final ProductSync productSync = new ProductSync(buildSyncOptions(metricsSphereClient));
 
         final long beforeSyncTime = System.currentTimeMillis();
         final ProductSyncStatistics syncStatistics = executeBlocking(productSync.sync(productDrafts));
@@ -158,7 +168,7 @@ public class ProductSyncBenchmark {
 
 
         // Calculate time taken for benchmark and assert it lies within threshold
-        final double diff = calculateDiff(SyncSolutionInfo.LIB_VERSION, PRODUCT_SYNC, UPDATES_ONLY, totalTime);
+        final double diff = THRESHOLD - totalTime;
         assertThat(diff)
             .withFailMessage(format("Diff of benchmark '%e' is longer than expected threshold of '%d'.", diff,
                 THRESHOLD))
@@ -192,7 +202,7 @@ public class ProductSyncBenchmark {
         assertThat(errorCallBackMessages).isEmpty();
         assertThat(warningCallBackMessages).isEmpty();
 
-        saveNewResult(SyncSolutionInfo.LIB_VERSION, PRODUCT_SYNC, UPDATES_ONLY, totalTime);
+        saveNewResult(PRODUCT_SYNC, UPDATES_ONLY, totalTime, ctpObserver);
     }
 
     @Test
@@ -213,8 +223,11 @@ public class ProductSyncBenchmark {
                                          .toArray(CompletableFuture[]::new))
                          .join();
 
+        final CtpObserver ctpObserver = CtpObserver.of();
+        final SimpleMetricsSphereClient metricsSphereClient = SimpleMetricsSphereClient.of(CTP_TARGET_CLIENT);
+        metricsSphereClient.getMetricObservable().addObserver(ctpObserver);
         // Sync new drafts
-        final ProductSync productSync = new ProductSync(syncOptions);
+        final ProductSync productSync = new ProductSync(buildSyncOptions(metricsSphereClient));
 
         final long beforeSyncTime = System.currentTimeMillis();
         final ProductSyncStatistics syncStatistics = executeBlocking(productSync.sync(productDrafts));
@@ -222,7 +235,7 @@ public class ProductSyncBenchmark {
 
 
         // Calculate time taken for benchmark and assert it lies within threshold
-        final double diff = calculateDiff(SyncSolutionInfo.LIB_VERSION, PRODUCT_SYNC, CREATES_AND_UPDATES, totalTime);
+        final double diff = THRESHOLD - totalTime;
         assertThat(diff)
             .withFailMessage(format("Diff of benchmark '%e' is longer than expected threshold of '%d'.", diff,
                 THRESHOLD))
@@ -257,7 +270,7 @@ public class ProductSyncBenchmark {
         assertThat(errorCallBackMessages).isEmpty();
         assertThat(warningCallBackMessages).isEmpty();
 
-        saveNewResult(SyncSolutionInfo.LIB_VERSION, PRODUCT_SYNC, CREATES_AND_UPDATES, totalTime);
+        saveNewResult(PRODUCT_SYNC, CREATES_AND_UPDATES, totalTime, ctpObserver);
     }
 
     @Nonnull
