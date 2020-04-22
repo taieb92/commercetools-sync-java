@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -226,12 +227,13 @@ class CategoryReferenceResolverTest {
             getMockProductService(PRODUCT_ID));
 
         // test and assertion
-        assertThat(productReferenceResolver.resolveCategoryReferences(productBuilder).toCompletableFuture())
-            .hasFailed()
-            .hasFailedWithThrowableThat()
-            .isExactlyInstanceOf(ReferenceResolutionException.class)
-            .hasMessage(format("Failed to resolve 'category' resource identifier on ProductDraft with "
-                + "key:'%s'. Reason: %s", productBuilder.getKey(), BLANK_ID_VALUE_ON_RESOURCE_IDENTIFIER));
+        productReferenceResolver.resolveCategoryReferences(productBuilder).exceptionally(exception -> {
+            assertThat(exception)
+                    .isExactlyInstanceOf(CompletionException.class)
+                    .hasMessage(format("Failed to resolve 'category' resource identifier on ProductDraft with "
+                            + "key:'%s'. Reason: %s", productBuilder.getKey(), BLANK_ID_VALUE_ON_RESOURCE_IDENTIFIER));
+            return null;
+        });
     }
 
     @Test
@@ -250,12 +252,14 @@ class CategoryReferenceResolverTest {
             getMockProductService(PRODUCT_ID));
 
         // test and assertion
-        assertThat(productReferenceResolver.resolveCategoryReferences(productBuilder).toCompletableFuture())
-            .hasFailed()
-            .hasFailedWithThrowableThat()
-            .isExactlyInstanceOf(ReferenceResolutionException.class)
-            .hasMessage(format("Failed to resolve 'category' resource identifier on ProductDraft with "
-                + "key:'%s'. Reason: %s", productBuilder.getKey(), BLANK_ID_VALUE_ON_RESOURCE_IDENTIFIER));
+        productReferenceResolver.resolveCategoryReferences(productBuilder).exceptionally(exception -> {
+            assertThat(exception)
+                .isExactlyInstanceOf(CompletionException.class)
+                .hasMessage(format("Failed to resolve 'category' resource identifier on ProductDraft with "
+                    + "key:'%s'. Reason: %s", productBuilder.getKey(), BLANK_ID_VALUE_ON_RESOURCE_IDENTIFIER));
+            return null;
+        });
+
     }
 
     @Test

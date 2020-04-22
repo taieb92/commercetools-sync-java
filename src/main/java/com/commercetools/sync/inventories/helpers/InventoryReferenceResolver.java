@@ -87,15 +87,13 @@ public final class InventoryReferenceResolver
 
         final ResourceIdentifier<Channel> channelReference = draftBuilder.getSupplyChannel();
         if (channelReference != null) {
-            try {
-                final String channelKey = getKeyFromResourceIdentifier(channelReference);
-                return fetchOrCreateAndResolveReference(draftBuilder, channelKey);
-            } catch (ReferenceResolutionException exception) {
-                return CompletableFutureUtils.exceptionallyCompletedFuture(
-                    new ReferenceResolutionException(format(FAILED_TO_RESOLVE_SUPPLY_CHANNEL, draftBuilder.getSku(),
-                        exception.getMessage()), exception));
-            }
+            final String customErrorMsg = format(FAILED_TO_RESOLVE_SUPPLY_CHANNEL, draftBuilder.getSku(),
+                    BLANK_ID_VALUE_ON_RESOURCE_IDENTIFIER);
+
+            return getKeyFromResourceIdentifier(channelReference, customErrorMsg)
+                    .thenCompose(channelKey -> fetchOrCreateAndResolveReference(draftBuilder, channelKey));
         }
+
         return completedFuture(draftBuilder);
     }
 

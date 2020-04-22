@@ -276,60 +276,57 @@ class CartDiscountSyncIT {
     void sync_WithUpdatedCartDiscount_WithNewCustomTypeWithWrongResIdentifier_ShouldFailToResolveReference() {
         // preparation
         final Type newCustomType =
-            createCartDiscountCustomType("new-type", Locale.ENGLISH, "new-type", CTP_TARGET_CLIENT);
+                createCartDiscountCustomType("new-type", Locale.ENGLISH, "new-type", CTP_TARGET_CLIENT);
 
         final CartDiscountDraft newCartDiscountDraftWithExistingKey =
-            CartDiscountDraftBuilder.of(CART_DISCOUNT_DRAFT_1)
-                                    .custom(CustomFieldsDraft.ofTypeKeyAndJson(newCustomType.getKey(), emptyMap()))
-                                    .build();
+                CartDiscountDraftBuilder.of(CART_DISCOUNT_DRAFT_1)
+                        .custom(CustomFieldsDraft.ofTypeKeyAndJson(newCustomType.getKey(), emptyMap()))
+                        .build();
 
         final List<String> errorMessages = new ArrayList<>();
         final List<Throwable> exceptions = new ArrayList<>();
         final List<UpdateAction<CartDiscount>> updateActionsList = new ArrayList<>();
 
         final CartDiscountSyncOptions cartDiscountSyncOptions = CartDiscountSyncOptionsBuilder
-            .of(CTP_TARGET_CLIENT)
-            .errorCallback((error, throwable) -> {
-                errorMessages.add(error);
-                exceptions.add(throwable);
-            })
-            .beforeUpdateCallback((updateActions, newCartDiscount, oldCartDiscount) -> {
-                updateActionsList.addAll(updateActions);
-                return updateActions;
-            })
-            .build();
+                .of(CTP_TARGET_CLIENT)
+                .errorCallback((error, throwable) -> {
+                    errorMessages.add(error);
+                    exceptions.add(throwable);
+                })
+                .beforeUpdateCallback((updateActions, newCartDiscount, oldCartDiscount) -> {
+                    updateActionsList.addAll(updateActions);
+                    return updateActions;
+                })
+                .build();
 
         final CartDiscountSync cartDiscountSync = new CartDiscountSync(cartDiscountSyncOptions);
 
         // test
         final CartDiscountSyncStatistics cartDiscountSyncStatistics = cartDiscountSync
-            .sync(singletonList(newCartDiscountDraftWithExistingKey))
-            .toCompletableFuture()
-            .join();
+                .sync(singletonList(newCartDiscountDraftWithExistingKey))
+                .toCompletableFuture()
+                .join();
 
         //assertions
-        assertThat(exceptions).hasSize(1);
-        assertThat(errorMessages).hasSize(1);
-        if (exceptions.get(0) instanceof ReferenceResolutionException) {
-            assertThat(errorMessages).containsExactly(
+        assertThat(errorMessages).containsExactly(
                 "Failed to resolve references on CartDiscountDraft with key:'key_1'. Reason: "
-                    + "Failed to resolve custom type reference on CartDiscountDraft with key:'key_1'. Reason: "
-                    + "The value of the 'id' field of the Resource Identifier/Reference is blank (null/empty).");
-            assertThat(exceptions).hasOnlyOneElementSatisfying(exception -> {
+                        + "Failed to resolve custom type reference on CartDiscountDraft with key:'key_1'. Reason: "
+                        + "The value of the 'id' field of the Resource Identifier/Reference is blank (null/empty).");
+        assertThat(exceptions)
+            .hasSize(1)
+            .hasOnlyOneElementSatisfying(exception -> {
+                assertThat(exception).isInstanceOf(ReferenceResolutionException.class);
                 assertThat(exception.getMessage())
-                    .contains("Failed to resolve custom type reference on CartDiscountDraft with key:'key_1'");
-                assertThat(exception.getCause().getMessage()).isEqualTo(
-                    "The value of the 'id' field of the Resource Identifier/Reference is blank (null/empty).");
+                    .contains("Failed to resolve custom type reference on CartDiscountDraft with key:'key_1'")
+                    .contains("The value of the 'id' field of the Resource Identifier/Reference is blank "
+                            + "(null/empty).");
             });
-        } else {
-            assertThat(errorMessages).contains(
-                "Failed to sync draft on CartDiscountDraft with key:'key_1'");
-        }
+
         assertThat(updateActionsList).isEmpty();
         assertThat(cartDiscountSyncStatistics
-            .getReportMessage())
-            .isEqualTo("Summary: 1 cart discounts were processed in total"
-                + " (0 created, 0 updated and 1 failed to sync).");
+                .getReportMessage())
+                .isEqualTo("Summary: 1 cart discounts were processed in total"
+                        + " (0 created, 0 updated and 1 failed to sync).");
         assertThat(cartDiscountSyncStatistics).hasValues(1, 0, 0, 1);
     }
 

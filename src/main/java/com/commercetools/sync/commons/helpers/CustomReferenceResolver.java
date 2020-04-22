@@ -16,7 +16,6 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static io.sphere.sdk.types.CustomFieldsDraft.ofTypeIdAndJson;
-import static io.sphere.sdk.utils.CompletableFutureUtils.exceptionallyCompletedFuture;
 import static java.lang.String.format;
 
 /**
@@ -104,14 +103,13 @@ public abstract class CustomReferenceResolver
      */
     private CompletionStage<Optional<String>> getCustomTypeId(@Nonnull final CustomFieldsDraft custom,
                                                               @Nonnull final String referenceResolutionErrorMessage) {
-        try {
-            final String customTypeKey = getKeyFromResourceIdentifier(custom.getType());
-            return typeService.fetchCachedTypeId(customTypeKey);
-        } catch (Exception exception) {
-            final String errorMessage =
-                format("%s Reason: %s", referenceResolutionErrorMessage, exception.getMessage());
-            return exceptionallyCompletedFuture(new ReferenceResolutionException(errorMessage, exception));
-        }
+        @Nonnull final String customErrorMsg =
+                format("%s Reason: %s", referenceResolutionErrorMessage,
+                        BaseReferenceResolver.BLANK_ID_VALUE_ON_RESOURCE_IDENTIFIER);
+
+        return getKeyFromResourceIdentifier(custom.getType(), customErrorMsg)
+                    .thenCompose(customTypeKey -> typeService.fetchCachedTypeId(customTypeKey));
+
     }
 
 

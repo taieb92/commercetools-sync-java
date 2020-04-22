@@ -6,8 +6,10 @@ import com.commercetools.sync.commons.exceptions.ReferenceResolutionException;
 import io.sphere.sdk.models.ResourceIdentifier;
 
 import javax.annotation.Nonnull;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
+import static io.sphere.sdk.utils.CompletableFutureUtils.exceptionallyCompletedFuture;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 /**
@@ -48,17 +50,44 @@ public abstract class BaseReferenceResolver<T, S extends BaseSyncOptions> {
      * If the above checks pass, the key value is returned. Otherwise a {@link ReferenceResolutionException} is thrown.
      *
      * @param resourceIdentifier the reference from which the key value is validated and returned.
+     * @param customErrorMsg the customized error message when key value is blank. Default error message is
+     *                       BLANK_ID_VALUE_ON_RESOURCE_IDENTIFIER.
      * @return the key value on the {@link ResourceIdentifier}
-     * @throws ReferenceResolutionException if any of the validation checks fail.
      */
     @Nonnull
-    protected static String getKeyFromResourceIdentifier(@Nonnull final ResourceIdentifier resourceIdentifier)
-        throws ReferenceResolutionException {
+    protected static CompletionStage<String> getKeyFromResourceIdentifier(
+            @Nonnull final ResourceIdentifier resourceIdentifier,
+            @Nonnull final String customErrorMsg) {
 
         final String key = resourceIdentifier.getId();
         if (isBlank(key)) {
-            throw new ReferenceResolutionException(BLANK_ID_VALUE_ON_RESOURCE_IDENTIFIER);
+            String errMsg = customErrorMsg;
+            if (isBlank(errMsg)) {
+                errMsg = BLANK_ID_VALUE_ON_RESOURCE_IDENTIFIER;
+            }
+            return exceptionallyCompletedFuture(
+                    new ReferenceResolutionException(errMsg));
         }
-        return key;
+        return CompletableFuture.completedFuture(key);
     }
+
+    /**
+     * This method fetches the id value on the passed {@link ResourceIdentifier}, if valid. If it is not valid, a
+     * {@link ReferenceResolutionException} will be thrown. The validity checks are:
+     * <ul>
+     * <li>Checks if the id value is not null or not empty.</li>
+     * </ul>
+     * If the above checks pass, the key value is returned. Otherwise a {@link ReferenceResolutionException} is thrown.
+     *
+     * @param resourceIdentifier the reference from which the key value is validated and returned.
+     * @return the key value on the {@link ResourceIdentifier}
+     */
+    @Nonnull
+    protected static CompletionStage<String> getKeyFromResourceIdentifier(
+            @Nonnull final ResourceIdentifier resourceIdentifier) {
+
+        return getKeyFromResourceIdentifier(resourceIdentifier, BLANK_ID_VALUE_ON_RESOURCE_IDENTIFIER);
+    }
+
+
 }

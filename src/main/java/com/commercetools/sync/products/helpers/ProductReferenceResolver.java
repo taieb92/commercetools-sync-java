@@ -143,15 +143,14 @@ public final class ProductReferenceResolver extends BaseReferenceResolver<Produc
     @Nonnull
     public CompletionStage<ProductDraftBuilder> resolveProductTypeReference(
         @Nonnull final ProductDraftBuilder draftBuilder) {
-        try {
-            return resolveResourceIdentifier(draftBuilder, draftBuilder.getProductType(),
-                productTypeService::fetchCachedProductTypeId, ResourceIdentifier::ofId,
-                ProductDraftBuilder::productType);
-        } catch (Exception exception) {
-            return exceptionallyCompletedFuture(new ReferenceResolutionException(
-                format(FAILED_TO_RESOLVE_REFERENCE, ProductType.referenceTypeId(), draftBuilder.getKey(),
-                    exception.getMessage())));
-        }
+
+        final String customErrorMsg = format(FAILED_TO_RESOLVE_REFERENCE, ProductType.referenceTypeId(),
+            draftBuilder.getKey(), BLANK_ID_VALUE_ON_RESOURCE_IDENTIFIER);
+
+        return resolveResourceIdentifier(draftBuilder, draftBuilder.getProductType(),
+            productTypeService::fetchCachedProductTypeId, ResourceIdentifier::ofId,
+            ProductDraftBuilder::productType, customErrorMsg);
+
     }
 
     /**
@@ -170,16 +169,19 @@ public final class ProductReferenceResolver extends BaseReferenceResolver<Produc
 
         final Set<ResourceIdentifier<Category>> categoryResourceIdentifiers = draftBuilder.getCategories();
         final Set<String> categoryKeys = new HashSet<>();
+
         for (ResourceIdentifier<Category> categoryResourceIdentifier : categoryResourceIdentifiers) {
             if (categoryResourceIdentifier != null) {
-                try {
-                    final String categoryKey = getKeyFromResourceIdentifier(categoryResourceIdentifier);
-                    categoryKeys.add(categoryKey);
-                } catch (ReferenceResolutionException referenceResolutionException) {
+                CompletionStage<String> categoryKeyCompletionStage =
+                        getKeyFromResourceIdentifier(categoryResourceIdentifier);
+
+                if (categoryKeyCompletionStage.toCompletableFuture().isCompletedExceptionally()) {
                     return exceptionallyCompletedFuture(
                         new ReferenceResolutionException(
                             format(FAILED_TO_RESOLVE_REFERENCE, Category.referenceTypeId(),
-                                draftBuilder.getKey(), referenceResolutionException.getMessage())));
+                                draftBuilder.getKey(), BLANK_ID_VALUE_ON_RESOURCE_IDENTIFIER)));
+                } else {
+                    categoryKeyCompletionStage.thenApply(categoryKeys::add);
                 }
             }
         }
@@ -240,15 +242,15 @@ public final class ProductReferenceResolver extends BaseReferenceResolver<Produc
     @Nonnull
     public CompletionStage<ProductDraftBuilder> resolveTaxCategoryReference(
         @Nonnull final ProductDraftBuilder draftBuilder) {
-        try {
-            return resolveResourceIdentifier(draftBuilder, draftBuilder.getTaxCategory(),
-                taxCategoryService::fetchCachedTaxCategoryId, ResourceIdentifier::ofId,
-                ProductDraftBuilder::taxCategory);
-        } catch (ReferenceResolutionException referenceResolutionException) {
-            return exceptionallyCompletedFuture(new ReferenceResolutionException(
-                format(FAILED_TO_RESOLVE_REFERENCE, TaxCategory.referenceTypeId(), draftBuilder.getKey(),
-                    referenceResolutionException.getMessage())));
-        }
+
+        final String customErrorMsg =
+            format(FAILED_TO_RESOLVE_REFERENCE, TaxCategory.referenceTypeId(),
+                draftBuilder.getKey(), BLANK_ID_VALUE_ON_RESOURCE_IDENTIFIER);
+
+        return resolveResourceIdentifier(draftBuilder, draftBuilder.getTaxCategory(),
+            taxCategoryService::fetchCachedTaxCategoryId, ResourceIdentifier::ofId,
+            ProductDraftBuilder::taxCategory, customErrorMsg);
+
     }
 
     /**
@@ -264,14 +266,13 @@ public final class ProductReferenceResolver extends BaseReferenceResolver<Produc
     @Nonnull
     public CompletionStage<ProductDraftBuilder> resolveStateReference(
         @Nonnull final ProductDraftBuilder draftBuilder) {
-        try {
-            return resolveResourceIdentifier(draftBuilder, draftBuilder.getState(),
-                stateService::fetchCachedStateId, State::referenceOfId, ProductDraftBuilder::state);
-        } catch (ReferenceResolutionException referenceResolutionException) {
-            return exceptionallyCompletedFuture(new ReferenceResolutionException(
-                format(FAILED_TO_RESOLVE_REFERENCE, State.referenceTypeId(), draftBuilder.getKey(),
-                    referenceResolutionException.getMessage())));
-        }
+
+        final String customErrorMsg =
+            format(FAILED_TO_RESOLVE_REFERENCE, State.referenceTypeId(),
+                draftBuilder.getKey(), BLANK_ID_VALUE_ON_RESOURCE_IDENTIFIER);
+
+        return resolveResourceIdentifier(draftBuilder, draftBuilder.getState(),
+            stateService::fetchCachedStateId, State::referenceOfId, ProductDraftBuilder::state, customErrorMsg);
     }
 
     /**
@@ -283,6 +284,7 @@ public final class ProductReferenceResolver extends BaseReferenceResolver<Produc
      * @param idToResourceIdentifierMapper function which creates {@link ResourceIdentifier} instance from fetched id
      * @param resourceIdentifierSetter     function which will set the resolved reference to the {@code productDraft}
      * @param <T>                          type of reference (e.g. {@link State}, {@link TaxCategory}
+     * @param customErrorMsg               customized error message if exception occurs
      * @return {@link CompletionStage} containing {@link ProductDraftBuilder} with resolved &lt;T&gt; reference.
      */
     @Nonnull
@@ -291,21 +293,23 @@ public final class ProductReferenceResolver extends BaseReferenceResolver<Produc
         @Nullable final S resourceIdentifier,
         @Nonnull final Function<String, CompletionStage<Optional<String>>> keyToIdMapper,
         @Nonnull final Function<String, S> idToResourceIdentifierMapper,
-        @Nonnull final BiFunction<ProductDraftBuilder, S, ProductDraftBuilder> resourceIdentifierSetter)
-        throws ReferenceResolutionException {
+        @Nonnull final BiFunction<ProductDraftBuilder, S, ProductDraftBuilder> resourceIdentifierSetter,
+        @Nonnull final String customErrorMsg) {
 
         if (resourceIdentifier == null) {
             return completedFuture(draftBuilder);
         }
 
-        final String resourceKey = getKeyFromResourceIdentifier(resourceIdentifier);
+        return getKeyFromResourceIdentifier(resourceIdentifier, customErrorMsg)
+                .thenCompose(resourceKey -> keyToIdMapper
+                    .apply(resourceKey)
+                    .thenApply(optId -> optId
+                        .map(idToResourceIdentifierMapper)
+                        .map(resourceIdentifierToSet ->
+                                resourceIdentifierSetter.apply(draftBuilder, resourceIdentifierToSet))
+                        .orElse(draftBuilder))
+        );
 
-        return keyToIdMapper
-            .apply(resourceKey)
-            .thenApply(optId -> optId
-                .map(idToResourceIdentifierMapper)
-                .map(resourceIdentifierToSet -> resourceIdentifierSetter.apply(draftBuilder, resourceIdentifierToSet))
-                .orElse(draftBuilder));
     }
 
 }

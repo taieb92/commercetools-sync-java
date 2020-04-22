@@ -153,19 +153,16 @@ public final class PriceReferenceResolver
             return completedFuture(draftBuilder);
         }
 
-        try {
-            final String resourceKey = getKeyFromResourceIdentifier(reference);
-            return keyToIdMapper.apply(resourceKey)
+        @Nonnull final String customErrorMsg =
+                format(FAILED_TO_RESOLVE_REFERENCE, reference.getTypeId(), draftBuilder.getCountry(),
+                    draftBuilder.getValue(), BLANK_ID_VALUE_ON_RESOURCE_IDENTIFIER);
+
+        return getKeyFromResourceIdentifier(reference, customErrorMsg)
+                    .thenCompose(resourceKey -> keyToIdMapper.apply(resourceKey)
                                 .thenCompose(resourceIdOptional -> resourceIdOptional
-                                    .map(idToReferenceMapper)
-                                    .map(referenceToSet -> referenceSetter.apply(draftBuilder, referenceToSet))
-                                    .orElseGet(() -> nonExistingReferenceDraftMapper.apply(draftBuilder, resourceKey)));
-        } catch (ReferenceResolutionException referenceResolutionException) {
-            return exceptionallyCompletedFuture(
-                new ReferenceResolutionException(
-                    format(FAILED_TO_RESOLVE_REFERENCE, reference.getTypeId(), draftBuilder.getCountry(),
-                        draftBuilder.getValue(), referenceResolutionException.getMessage())));
-        }
+                                .map(idToReferenceMapper)
+                                .map(referenceToSet -> referenceSetter.apply(draftBuilder, referenceToSet))
+                                .orElseGet(() -> nonExistingReferenceDraftMapper.apply(draftBuilder, resourceKey))));
     }
 
     /**

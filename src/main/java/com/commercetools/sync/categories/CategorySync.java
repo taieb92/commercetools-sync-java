@@ -26,7 +26,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -279,32 +278,24 @@ public class CategorySync extends BaseSync<CategoryDraft, CategorySyncStatistics
             if (categoryDraft != null) {
                 final String categoryKey = categoryDraft.getKey();
                 if (isNotBlank(categoryKey)) {
-                    try {
-                        categoryDraft = updateCategoriesWithMissingParents(categoryDraft, keyToIdCache);
-                        referenceResolver.resolveReferences(categoryDraft)
-                                         .thenAccept(referencesResolvedDraft -> {
-                                             referencesResolvedDrafts.add(referencesResolvedDraft);
-                                             if (keyToIdCache.containsKey(categoryKey)) {
-                                                 existingCategoryDrafts.add(referencesResolvedDraft);
-                                             } else {
-                                                 newCategoryDrafts.add(referencesResolvedDraft);
-                                             }
-                                         })
-                                         .exceptionally(referenceResolutionException -> {
-                                             Throwable actualException = referenceResolutionException;
-                                             if (referenceResolutionException instanceof CompletionException) {
-                                                 actualException = referenceResolutionException.getCause();
-                                             }
-                                             final String errorMessage = format(FAILED_TO_RESOLVE_REFERENCES,
-                                                 categoryKey, actualException);
-                                             handleError(errorMessage, referenceResolutionException);
-                                             return null;
-                                         }).toCompletableFuture().join();
-                    } catch (ReferenceResolutionException referenceResolutionException) {
-                        final String errorMessage = format(FAILED_TO_RESOLVE_REFERENCES, categoryKey,
-                            referenceResolutionException);
+
+                    updateCategoriesWithMissingParents(categoryDraft, keyToIdCache)
+                    .thenCompose(resultDraft -> referenceResolver.resolveReferences(resultDraft))
+                    .thenAccept(referencesResolvedDraft -> {
+                        referencesResolvedDrafts.add(referencesResolvedDraft);
+                        if (keyToIdCache.containsKey(categoryKey)) {
+                            existingCategoryDrafts.add(referencesResolvedDraft);
+                        } else {
+                            newCategoryDrafts.add(referencesResolvedDraft);
+                        }
+                    })
+                    .exceptionally(referenceResolutionException -> {
+                        final String errorMessage = format(FAILED_TO_RESOLVE_REFERENCES,
+                                categoryKey, referenceResolutionException);
                         handleError(errorMessage, referenceResolutionException);
-                    }
+                        return null;
+                    }).toCompletableFuture().join();
+
                 } else {
                     final String errorMessage = format(CATEGORY_DRAFT_KEY_NOT_SET, categoryDraft.getName());
                     handleError(errorMessage, null);
@@ -350,19 +341,27 @@ public class CategorySync extends BaseSync<CategoryDraft, CategorySyncStatistics
      * @return the same identical supplied category draft. However, with a null parent field, if the parent is missing.
      * @throws ReferenceResolutionException thrown if the parent key is not valid.
      */
-    private CategoryDraft updateCategoriesWithMissingParents(@Nonnull final CategoryDraft categoryDraft,
-                                                             @Nonnull final Map<String, String> keyToIdCache)
-        throws ReferenceResolutionException {
-        return getParentCategoryKey(categoryDraft)
-            .map(parentCategoryKey -> {
-                if (isMissingCategory(parentCategoryKey, keyToIdCache)) {
-                    statistics.putMissingParentCategoryChildKey(parentCategoryKey, categoryDraft.getKey());
-                    return CategoryDraftBuilder.of(categoryDraft)
-                                               .parent((ResourceIdentifier<Category>) null)
-                                               .build();
-                }
-                return categoryDraft;
-            }).orElse(categoryDraft);
+    private CompletionStage<CategoryDraft> updateCategoriesWithMissingParents(
+            @Nonnull final CategoryDraft categoryDraft,
+            @Nonnull final Map<String, String> keyToIdCache) {
+
+        return getParentCategoryKey(categoryDraft).thenApply(parentCategoryKeyOptional ->
+             mapParentCategoryKeyOptional(parentCategoryKeyOptional, categoryDraft, keyToIdCache)
+        );
+    }
+
+    private CategoryDraft mapParentCategoryKeyOptional(@Nonnull final Optional<String> parentCategoryKeyOptional,
+        @Nonnull final CategoryDraft categoryDraft,
+        @Nonnull final Map<String, String> keyToIdCache) {
+        return parentCategoryKeyOptional.map(parentCategoryKey -> {
+            if (isMissingCategory(parentCategoryKey, keyToIdCache)) {
+                statistics.putMissingParentCategoryChildKey(parentCategoryKey, categoryDraft.getKey());
+                return CategoryDraftBuilder.of(categoryDraft)
+                        .parent((ResourceIdentifier<Category>) null)
+                        .build();
+            }
+            return categoryDraft;
+        }).orElse(categoryDraft);
     }
 
     /**

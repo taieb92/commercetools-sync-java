@@ -73,13 +73,10 @@ class InventoryReferenceResolverTest {
 
         referenceResolver.resolveSupplyChannelReference(InventoryEntryDraftBuilder.of(draft))
                          .exceptionally(exception -> {
-                             assertThat(exception).isExactlyInstanceOf(ReferenceResolutionException.class);
+                             assertThat(exception).isExactlyInstanceOf(CompletionException.class);
                              assertThat(exception.getCause())
-                                 .isExactlyInstanceOf(CompletionException.class);
-                             assertThat(exception.getCause().getCause())
                                  .isExactlyInstanceOf(ReferenceResolutionException.class);
-                             assertThat(exception.getCause().getCause().getMessage())
-                                 .isEqualTo("Channel with key 'channel-key_1' does not exist.");
+
                              return null;
                          }).toCompletableFuture().join();
     }
@@ -161,9 +158,9 @@ class InventoryReferenceResolverTest {
 
         referenceResolver.resolveSupplyChannelReference(InventoryEntryDraftBuilder.of(draft))
                          .exceptionally(exception -> {
-                             assertThat(exception).isExactlyInstanceOf(ReferenceResolutionException.class);
+                             assertThat(exception).isExactlyInstanceOf(CompletionException.class);
                              assertThat(exception.getMessage())
-                                 .isEqualTo(format("Failed to resolve supply channel resource identifier on "
+                                 .contains(format("Failed to resolve supply channel resource identifier on "
                                      + "InventoryEntryDraft with SKU:'1000'. Reason: %s",
                                      BLANK_ID_VALUE_ON_RESOURCE_IDENTIFIER));
                              return null;
@@ -181,9 +178,9 @@ class InventoryReferenceResolverTest {
 
         referenceResolver.resolveSupplyChannelReference(InventoryEntryDraftBuilder.of(draft))
                          .exceptionally(exception -> {
-                             assertThat(exception).isExactlyInstanceOf(ReferenceResolutionException.class);
+                             assertThat(exception).isExactlyInstanceOf(CompletionException.class);
                              assertThat(exception.getMessage())
-                                 .isEqualTo(format("Failed to resolve supply channel resource identifier on "
+                                 .contains(format("Failed to resolve supply channel resource identifier on "
                                      + "InventoryEntryDraft with SKU:'null'. Reason: %s",
                                      BLANK_ID_VALUE_ON_RESOURCE_IDENTIFIER));
                              return null;
@@ -205,7 +202,7 @@ class InventoryReferenceResolverTest {
                              assertThat(exception.getCause())
                                  .isExactlyInstanceOf(ReferenceResolutionException.class);
                              assertThat(exception.getCause().getMessage())
-                                 .isEqualTo(format("Failed to resolve custom type resource identifier on "
+                                 .contains(format("Failed to resolve custom type resource identifier on "
                                      + "InventoryEntryDraft with SKU:'1000'. Reason: %s",
                                      BLANK_ID_VALUE_ON_RESOURCE_IDENTIFIER));
                              return null;

@@ -24,7 +24,8 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 public class AttributeDefinitionReferenceResolver
     extends BaseReferenceResolver<AttributeDefinitionDraft, ProductTypeSyncOptions> {
     private ProductTypeService productTypeService;
-
+    private static final String PRODUCT_TYPE_REFERENCE_RESOLUTION_FAILED
+            = "Failed to resolve NestedType productType reference.";
 
     public AttributeDefinitionReferenceResolver(@Nonnull final ProductTypeSyncOptions options,
                                                 @Nonnull final ProductTypeService productTypeService) {
@@ -107,17 +108,11 @@ public class AttributeDefinitionReferenceResolver
 
     @Nonnull
     private CompletionStage<Optional<Reference<ProductType>>> resolveProductTypeReference(
-        @Nonnull final Reference<ProductType> typeReference) {
-
-        final String resourceKey;
-        try {
-            resourceKey = getKeyFromResourceIdentifier(typeReference);
-            return productTypeService.fetchCachedProductTypeId(resourceKey)
-                    .thenApply(optionalId -> optionalId.map(ProductType::referenceOfId));
-        } catch (Exception exception) {
-            return exceptionallyCompletedFuture(
-                new ReferenceResolutionException("Failed to resolve NestedType productType reference.", exception));
-        }
+            @Nonnull final Reference<ProductType> typeReference) {
+        return getKeyFromResourceIdentifier(typeReference, PRODUCT_TYPE_REFERENCE_RESOLUTION_FAILED)
+                .thenCompose(resourceKey -> productTypeService.fetchCachedProductTypeId(resourceKey)
+                    .thenApply(optionalId -> optionalId.map(ProductType::referenceOfId))
+                );
     }
 
 }

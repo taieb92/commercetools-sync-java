@@ -4,6 +4,7 @@ package com.commercetools.sync.categories.helpers;
 import com.commercetools.sync.categories.CategorySyncOptions;
 import com.commercetools.sync.commons.exceptions.ReferenceResolutionException;
 import com.commercetools.sync.commons.helpers.AssetReferenceResolver;
+
 import com.commercetools.sync.commons.helpers.CustomReferenceResolver;
 import com.commercetools.sync.services.CategoryService;
 import com.commercetools.sync.services.TypeService;
@@ -20,7 +21,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
 import static com.commercetools.sync.commons.utils.CompletableFutureUtils.mapValuesToFutureOfCompletedValues;
-import static io.sphere.sdk.utils.CompletableFutureUtils.exceptionallyCompletedFuture;
 import static java.lang.String.format;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static java.util.stream.Collectors.toList;
@@ -109,24 +109,23 @@ public final class CategoryReferenceResolver
      */
     @Nonnull
     CompletionStage<CategoryDraftBuilder> resolveParentReference(@Nonnull final CategoryDraftBuilder draftBuilder) {
-        try {
-            return getParentCategoryKey(draftBuilder)
-                .map(parentCategoryKey -> fetchAndResolveParentReference(draftBuilder, parentCategoryKey))
-                .orElseGet(() -> completedFuture(draftBuilder));
-        } catch (ReferenceResolutionException referenceResolutionException) {
-            return exceptionallyCompletedFuture(referenceResolutionException);
-        }
+
+        return getParentCategoryKey(draftBuilder)
+                .thenCompose(parentCategoryKeyOptional ->
+                    parentCategoryKeyOptional.map(parentCategoryKey ->
+                            fetchAndResolveParentReference(draftBuilder, parentCategoryKey))
+                            .orElseGet(() -> completedFuture(draftBuilder)));
+
     }
 
     @Nonnull
-    public static Optional<String> getParentCategoryKey(@Nonnull final CategoryDraftBuilder draftBuilder)
-        throws ReferenceResolutionException {
+    public static CompletionStage<Optional<String>> getParentCategoryKey(
+            @Nonnull final CategoryDraftBuilder draftBuilder) {
         return getParentCategoryKey(draftBuilder.getParent(), draftBuilder.getKey());
     }
 
     @Nonnull
-    public static Optional<String> getParentCategoryKey(@Nonnull final CategoryDraft draft)
-        throws ReferenceResolutionException {
+    public static CompletionStage<Optional<String>> getParentCategoryKey(@Nonnull final CategoryDraft draft) {
         return getParentCategoryKey(draft.getParent(), draft.getKey());
     }
 
@@ -145,23 +144,20 @@ public final class CategoryReferenceResolver
      *                                         returned.
      * @param categoryKey                      the category key used in the error message if the key was not valid.
      * @return an optional containing the id or an empty optional if there is no parent reference.
-     * @throws ReferenceResolutionException thrown if the key is invalid.
      */
     @Nonnull
-    private static Optional<String> getParentCategoryKey(
+    private static CompletionStage<Optional<String>> getParentCategoryKey(
         @Nullable final ResourceIdentifier<Category> parentCategoryResourceIdentifier,
-        @Nullable final String categoryKey) throws ReferenceResolutionException {
+        @Nullable final String categoryKey)  {
 
         if (parentCategoryResourceIdentifier != null) {
-            try {
-                final String parentKey = getKeyFromResourceIdentifier(parentCategoryResourceIdentifier);
-                return Optional.of(parentKey);
-            } catch (ReferenceResolutionException referenceResolutionException) {
-                throw new ReferenceResolutionException(format(FAILED_TO_RESOLVE_PARENT, categoryKey,
-                    referenceResolutionException.getMessage()), referenceResolutionException);
-            }
+            @Nonnull final String customErrorMsg =
+                    format(FAILED_TO_RESOLVE_PARENT, categoryKey, BLANK_ID_VALUE_ON_RESOURCE_IDENTIFIER);
+
+            return getKeyFromResourceIdentifier(parentCategoryResourceIdentifier, customErrorMsg)
+                    .thenApply(parentKey -> Optional.of(parentKey));
         }
-        return Optional.empty();
+        return completedFuture(Optional.empty());
     }
 
     /**
